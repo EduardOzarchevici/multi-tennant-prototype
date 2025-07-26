@@ -14,7 +14,10 @@ def resolve_login(user: UserAuth, db: Session):
             "role": user.role
         })
         return {'token': token,
-                'userdata': user}
+                'userdata': user,
+                'accesible_tenants':user.tenants,
+                'current_tenant': user.tenants[0],
+                }
 
 def resolve_register(user: UserCreate, db: Session):
     result = db.execute(select(User).where(User.email == user.email)).first()

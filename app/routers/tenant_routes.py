@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, Path, Body
+from fastapi import APIRouter, Depends, Path, Body, Header
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from pydantic import BaseModel
+from typing import Annotated
 
 from schemas.tenant_schema import *
 from core.db import get_public_session, engine
@@ -14,11 +15,21 @@ tenant_router = APIRouter()
 class TodoCreate(BaseModel):
     title: str
 
-def get_tenant_session(tenant: str):
+def get_tenant_session(tenant: Annotated[str, Header(alias="X-Tenant")]):
     session = Session(bind=engine)
     try:
+        # Verifică dacă schema există în pg_namespace
+        result = session.execute(
+            text("SELECT schema_name FROM information_schema.schemata WHERE schema_name = :tenant"),
+            {"tenant": tenant}
+        ).scalar()
+
+        if result is None:
+            raise HTTPException(status_code=400, detail=f"Schema '{tenant}' does not exist.")
+
+        # Setează search_path la schema respectivă
         session.execute(text(f"SET search_path TO {tenant}"))
-        yield session
+        yield session, tenant
     finally:
         session.close()
 
@@ -26,6 +37,8 @@ def get_tenant_model(tenant_name: str):
     _, Todo = get_tenant_base(tenant_name)
     return Todo
 
+def get_tenant_model_from_header():
+    pass
 
 @tenant_router.post('/tenants')
 def create_tenant(tenant_data: TenantCreate, user_data = Depends(token_required), db: Session = Depends(get_public_session)):
@@ -33,18 +46,21 @@ def create_tenant(tenant_data: TenantCreate, user_data = Depends(token_required)
     return resolve_create_tenant(tenant_data, user_data, db)
 
 
-@tenant_router.get("/tenants/{tenant}/todos")
-def read_todos(tenant: str, session: Session = Depends(get_tenant_session)):
+@tenant_router.get("/tenants/todos")
+def read_todos(session_and_tenant: tuple = Depends(get_tenant_session), userData = Depends(token_required)):
+    session, tenant = session_and_tenant
     Todo = get_tenant_model(tenant)
     return session.query(Todo).all()
 
-@tenant_router.post("/tenants/{tenant_name}/todos")
+
+@tenant_router.post("/tenants/todos")
 def create_todo(
-    tenant_name: str = Path(...),
     todo_data: TodoCreate = Body(...),
-    session: Session = Depends(get_tenant_session),
-):
-    Todo = get_tenant_model(tenant_name)
+    session_and_tenant: tuple = Depends(get_tenant_session),
+    userData = Depends(token_required)):
+
+    session, tenant = session_and_tenant
+    Todo = get_tenant_model(tenant)
 
     todo = Todo(title=todo_data.title)
     session.add(todo)

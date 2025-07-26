@@ -15,6 +15,7 @@ user_role_enum = PGEnum('admin', 'user', name='userrole', create_type=False)
 
 class User(Base):
     __tablename__ = 'users'
+    __table_args__ = {'schema': 'public'}
 
     id = Column(Integer,primary_key=True, index=True)
     name = Column(String, nullable=False, index=True)
