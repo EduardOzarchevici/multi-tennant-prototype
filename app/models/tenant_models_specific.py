@@ -1,5 +1,5 @@
 from sqlalchemy import MetaData, Column, Integer, String, Text, ForeignKey, DateTime, Boolean, Table, Numeric, text
-from sqlalchemy.orm import declarative_base, relationship
+from sqlalchemy.orm import declarative_base, relationship, registry
 
 from models.user_model import User
 
@@ -15,38 +15,40 @@ from models.user_model import User
 #     title = Column(String)
 
 def get_tenant_base(tenant_schema_name: str):
-    # metadata = MetaData(schema=tenant_schema_name)
-    # Base = declarative_base(metadata=metadata)
+    metadata = MetaData(schema=tenant_schema_name)  # setăm schema aici
 
-    from core.db import Base
+    mapper_registry = registry(metadata=metadata)  # aici punem metadata la registry
+
+    Base = mapper_registry.generate_base()
 
     account_owner_table = Table(
         'AccountOwners',
         Base.metadata,
         Column('accountId', Integer, ForeignKey(f'{tenant_schema_name}.account.id'), primary_key=True),
-        Column('ownerId', Integer, ForeignKey('public.users.id'), primary_key=True),
-        schema=tenant_schema_name
+        Column('ownerId', Integer, primary_key=True),
+        schema=tenant_schema_name,
+        extend_existing=True
     )
 
     class Account(Base):
         __tablename__ = 'account'
-        __table_args__ = {'schema': tenant_schema_name}
+        __table_args__ = {'schema': tenant_schema_name, 'extend_existing': True}
 
         id = Column(Integer, primary_key=True)
         balance = Column(Numeric(10, 2))
         accountName = Column(String(45))
 
         # ✅ Relație cu User din public
-        owners = relationship(
-            "User",
-            secondary=account_owner_table,
-            backref="accounts"
-        )
+        # owners = relationship(
+        #     "User",
+        #     secondary=account_owner_table,
+        #     backref="accounts"
+        # )
 
     # restul claselor: la fel, dar adaugă __table_args__ cu schema
     class Activity(Base):
         __tablename__ = 'activity'
-        __table_args__ = {'schema': tenant_schema_name}
+        __table_args__ = {'schema': tenant_schema_name, 'extend_existing': True}
         id = Column(Integer, primary_key=True, autoincrement=True)
         userName = Column(String(255), nullable=False)
         event = Column(String(255), nullable=False)
@@ -55,7 +57,7 @@ def get_tenant_base(tenant_schema_name: str):
 
     class Project(Base):
         __tablename__ = 'projects'
-        __table_args__ = {'schema': tenant_schema_name}
+        __table_args__ = {'schema': tenant_schema_name, 'extend_existing': True}
         id = Column(Integer, primary_key=True)
         name = Column(String(255), nullable=False)
         creationDate = Column(DateTime, nullable=False)
@@ -69,14 +71,14 @@ def get_tenant_base(tenant_schema_name: str):
 
     class Receipt(Base):
         __tablename__ = 'receipt'
-        __table_args__ = {'schema': tenant_schema_name}
+        __table_args__ = {'schema': tenant_schema_name, 'extend_existing': True}
         id = Column(Integer, primary_key=True)
         path = Column(Text, nullable=False)
         parentkey = Column(String(45), nullable=False)
 
     class Task(Base):
         __tablename__ = 'task'
-        __table_args__ = {'schema': tenant_schema_name}
+        __table_args__ = {'schema': tenant_schema_name, 'extend_existing': True}
         id = Column(Integer, primary_key=True)
         createdby = Column(Integer, nullable=False)
         tasktype = Column(String(45), nullable=False)
@@ -93,7 +95,7 @@ def get_tenant_base(tenant_schema_name: str):
 
     class ShoppingItem(Base):
         __tablename__ = 'shoppingitems'
-        __table_args__ = {'schema': tenant_schema_name}
+        __table_args__ = {'schema': tenant_schema_name, 'extend_existing': True}
         id = Column(Integer, primary_key=True)
         taskid = Column(Integer, ForeignKey(f'{tenant_schema_name}.task.id'), nullable=False)
         name = Column(String(255), nullable=False)
@@ -105,7 +107,7 @@ def get_tenant_base(tenant_schema_name: str):
 
     class Transaction(Base):
         __tablename__ = 'transactions'
-        __table_args__ = {'schema': tenant_schema_name}
+        __table_args__ = {'schema': tenant_schema_name, 'extend_existing': True}
         id = Column(Integer, primary_key=True)
         amount = Column(Numeric(10, 2), nullable=False)
         projectKey = Column(Integer, ForeignKey(f'{tenant_schema_name}.projects.id'))

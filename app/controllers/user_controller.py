@@ -13,6 +13,13 @@ def resolve_login(user: UserAuth, db: Session):
             "sub": user.email,
             "role": user.role
         })
+
+        if(user.role == 'admin'):
+            return {
+                'token': token,
+                'userdata': user,
+            }
+
         return {'token': token,
                 'userdata': user,
                 'accesible_tenants':user.tenants,
