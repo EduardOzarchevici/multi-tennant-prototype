@@ -57,7 +57,7 @@ def resolve_delete_tenant(db:Session, tenant_id):
     return {"message": f"Tenant with id {tenant_id} deleted successfully"}
 
 
-def resolve_create_account(account_data: AccountCreate, db: Session, user_data, Account):
+def resolve_create_account(account_data: AccountCreate, db: Session, user_data, Account, account_owner_table):
     account = db.execute(select(Account).where(Account.accountName == account_data.account_name)).first()
 
     if account:
@@ -79,6 +79,16 @@ def resolve_create_account(account_data: AccountCreate, db: Session, user_data, 
         db.add(new_account)
         db.commit()
         db.refresh(new_account)
+
+        # Inserare în tabela de legătură
+        db.execute(
+            account_owner_table.insert().values(
+                accountId=new_account.id,
+                ownerId=user.id
+            )
+        )
+
+        db.commit()
     except Exception as e:
         db.rollback()
         raise e
@@ -88,4 +98,17 @@ def resolve_create_account(account_data: AccountCreate, db: Session, user_data, 
 def resolve_read_accounts(Account, db):
 
     return db.query(Account).all()
+
+
+def resolve_change_account_balance(account_id, account_balance, db, Account):
+    account = db.execute(select(Account).where(Account.id == account_id)).scalar_one_or_none()
+
+    if not account:
+        raise HTTPException(status_code=404, detail='Account id not found')
+
+    account.balance = account_balance
+    db.commit()
+    db.refresh(account)
+
+    return account
 

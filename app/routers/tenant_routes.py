@@ -39,6 +39,7 @@ def get_tenant_model(tenant_name: str):
     return Account, account_owner_table, Activity, Project, Receipt, Task, ShoppingItem, Transaction
 
 
+''''--------------TENANTS--------------'''
 
 @tenant_router.post('/tenants')
 def create_tenant(tenant_data: TenantCreate, user_data = Depends(token_required), db: Session = Depends(get_public_session)):
@@ -57,6 +58,9 @@ def delete_tenant(tenant_id: int ,user_data=Depends(token_required), db: Session
         raise HTTPException(status_code=403, detail='Not allowed')
     return resolve_delete_tenant(db, tenant_id)
 
+
+''''--------------ACCOUNTS--------------'''
+
 @tenant_router.post('/accounts')
 def create_account(
         account_data: AccountCreate = Body(),
@@ -64,8 +68,8 @@ def create_account(
         user_data = Depends(token_required)
 ):
     session, tenant = session_and_tenant
-    Account, *_ = get_tenant_model(tenant)
-    return resolve_create_account(account_data, session, user_data, Account)
+    Account, account_owner_table, *_ = get_tenant_model(tenant)
+    return resolve_create_account(account_data, session, user_data, Account, account_owner_table)
 
 @tenant_router.get('/accounts')
 def read_accounts(
@@ -79,3 +83,15 @@ def read_accounts(
     Account, *_ = get_tenant_model(tenant)
 
     return resolve_read_accounts(Account, session)
+
+@tenant_router.patch('/accounts/{account_id}')
+def change_account_balance(
+        account_id: int,
+        data: AccountBalanceUpdate = Body(),
+        session_and_tenant: tuple = Depends(get_tenant_session),
+        user_data = Depends(token_required),
+):
+    session, tenant = session_and_tenant
+    Account, *_ = get_tenant_model(tenant)
+
+    return  resolve_change_account_balance(account_id, data.account_balance, session, Account)

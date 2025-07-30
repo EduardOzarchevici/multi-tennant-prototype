@@ -12,3 +12,5 @@ class AccountCreate(BaseModel):
 class AccountRead(BaseModel):
     account_name: str
 
+class AccountBalanceUpdate(BaseModel):
+    account_balance: int
