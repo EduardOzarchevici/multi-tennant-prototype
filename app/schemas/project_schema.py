@@ -28,4 +28,4 @@ class ProjectOut(BaseModel):
     amountspent: Decimal
 
     class Config:
-        orm_mode = True
+        from_attribute = True
